@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Book</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .dark {
+      background: #121212;
+      color: #e0e0e0;
+    }
+
+    header {
+      text-align: center;
+      padding: 1rem;
+      background: #4a90e2;
+      color: white;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 1rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.5rem;
+      margin: 0.25rem 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .form-actions button {
+      flex: 1;
+      padding: 0.5rem;
+      border: none;
+      background: #4a90e2;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .form-actions button:hover {
+      background: #357ac9;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 1rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    .contact-card {
+      background: rgba(255, 255, 255, 0.9);
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.3s;
+    }
+
+    .dark .contact-card {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .contact-info p {
+      margin: 0.2rem 0;
+    }
+
+    .icons i {
+      margin-left: 10px;
+      cursor: pointer;
+    }
+
+    .icons .fav {
+      color: gold;
+    }
+
+    .toggle-dark {
+      margin-top: 1rem;
+      text-align: right;
+    }
+
+    .import-export {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+      gap: 10px;
+    }
+
+    .import-export button,
+    .import-export label {
+      flex: 1;
+      text-align: center;
+      padding: 0.5rem;
+      border-radius: 5px;
+      background: #6c757d;
+      color: white;
+      cursor: pointer;
+      border: none;
+    }
+
+    @media (max-width: 600px) {
+      .form-actions,
+      .import-export,
+      .sort-filter {
+        flex-direction: column;
+      }
+    }
+
+    .sort-filter {
+      margin-top: 1rem;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .sort-filter select,
+    .sort-filter label {
+      flex: 1;
+      padding: 0.5rem;
+    }
+
+    .sort-filter input[type="checkbox"] {
+      transform: scale(1.2);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📇 Contact Book</h1>
+  </header>
+  <div class="container">
+    <div class="form-group">
+      <input id="name" type="text" placeholder="Name" />
+      <input id="phone" type="text" placeholder="Phone Number" />
+      <input id="email" type="email" placeholder="Email" />
+    </div>
+    <div class="form-actions">
+      <button onclick="addContact()">Add Contact</button>
+      <button onclick="clearForm()">Clear</button>
+    </div>
+
+    <div class="search-bar">
+      <input id="search" type="text" placeholder="Search contacts..." oninput="searchContacts()" />
+    </div>
+
+    <div class="toggle-dark">
+      <button onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
+    </div>
+
+    <div class="import-export">
+      <button onclick="exportContacts()">⬇️ Export</button>
+      <label>
+        ⬆️ Import
+        <input type="file" hidden onchange="importContacts(event)" />
+      </label>
+    </div>
+
+    <!-- NEW: Sort + Filter -->
+    <div class="sort-filter">
+      <select id="sortOrder" onchange="renderContacts()">
+        <option value="az">Sort A–Z</option>
+        <option value="za">Sort Z–A</option>
+      </select>
+      <label>
+        <input type="checkbox" id="favOnly" onchange="renderContacts()" />
+        ⭐ Show Favorites Only
+      </label>
+    </div>
+
+    <div id="contact-list"></div>
+  </div>
+
+  <script>
+    let contacts = JSON.parse(localStorage.getItem("contacts")) || [];
+    let darkMode = localStorage.getItem("dark") === "true";
+    if (darkMode) document.body.classList.add("dark");
+
+    function save() {
+      localStorage.setItem("contacts", JSON.stringify(contacts));
+    }
+
+    function addContact() {
+      const name = document.getElementById("name").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const email = document.getElementById("email").value.trim();
+      if (!name || !phone || !email) return alert("Fill all fields!");
+
+      contacts.push({ name, phone, email, favorite: false });
+      save();
+      renderContacts();
+      clearForm();
+    }
+
+    function clearForm() {
+      document.getElementById("name").value = "";
+      document.getElementById("phone").value = "";
+      document.getElementById("email").value = "";
+    }
+
+    function renderContacts() {
+      const list = document.getElementById("contact-list");
+      list.innerHTML = "";
+
+      const sortOrder = document.getElementById("sortOrder").value;
+      const favOnly = document.getElementById("favOnly").checked;
+
+      let filtered = [...contacts];
+
+      if (favOnly) {
+        filtered = filtered.filter(c => c.favorite);
+      }
+
+      filtered.sort((a, b) => {
+        const nameA = a.name.toLowerCase();
+        const nameB = b.name.toLowerCase();
+        if (sortOrder === "az") return nameA.localeCompare(nameB);
+        else return nameB.localeCompare(nameA);
+      });
+
+      filtered.forEach((c, i) => {
+        const card = document.createElement("div");
+        card.className = "contact-card";
+        card.innerHTML = `
+          <div class="contact-info">
+            <p><strong>${c.name}</strong></p>
+            <p>${c.phone}</p>
+            <p>${c.email}</p>
+          </div>
+          <div class="icons">
+            <i class="fas fa-star ${c.favorite ? 'fav' : ''}" onclick="toggleFavorite(${i})"></i>
+            <i class="fas fa-edit" onclick="editContact(${i})"></i>
+            <i class="fas fa-trash" onclick="deleteContact(${i})"></i>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function deleteContact(index) {
+      contacts.splice(index, 1);
+      save();
+      renderContacts();
+    }
+
+    function toggleFavorite(index) {
+      contacts[index].favorite = !contacts[index].favorite;
+      save();
+      renderContacts();
+    }
+
+    function editContact(index) {
+      const contact = contacts[index];
+      const newName = prompt("Edit Name:", contact.name);
+      if (newName === null) return;
+      const newPhone = prompt("Edit Phone:", contact.phone);
+      if (newPhone === null) return;
+      const newEmail = prompt("Edit Email:", contact.email);
+      if (newEmail === null) return;
+
+      contacts[index] = {
+        ...contacts[index],
+        name: newName.trim(),
+        phone: newPhone.trim(),
+        email: newEmail.trim()
+      };
+      save();
+      renderContacts();
+    }
+
+    function searchContacts() {
+      const q = document.getElementById("search").value.toLowerCase();
+      const cards = document.querySelectorAll(".contact-card");
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        card.style.display = text.includes(q) ? "flex" : "none";
+      });
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+      localStorage.setItem("dark", document.body.classList.contains("dark"));
+    }
+
+    function exportContacts() {
+      const data = JSON.stringify(contacts, null, 2);
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "contacts.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importContacts(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const imported = JSON.parse(evt.target.result);
+          if (Array.isArray(imported)) {
+            contacts = imported;
+            save();
+            renderContacts();
+          } else {
+            alert("Invalid file format");
+          }
+        } catch {
+          alert("Could not import contacts");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.onload = renderContacts;
+  </script>
+</body>
+</html>
